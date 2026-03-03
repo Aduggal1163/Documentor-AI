@@ -9,3 +9,5 @@ pydantic
 ollama
 pydantic[email]
 cryptography
+pypdf
+python-docx
