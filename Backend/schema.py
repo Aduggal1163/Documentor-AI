@@ -1,6 +1,9 @@
 from pydantic import BaseModel,EmailStr,ConfigDict
 from datetime import datetime
 
+class AdminLogin(BaseModel):
+    username : str
+    password : str
 class UserCreate(BaseModel):
     username : str
     email : EmailStr
