@@ -26,6 +26,7 @@ class Document(Base):
 
     user = relationship("User",back_populates='documents')
     chats = relationship("Chat", back_populates="document", cascade="all, delete-orphan")
+    diagrams = relationship("Diagram", back_populates="document", cascade="all, delete-orphan")
 
 class Chat(Base):
     __tablename__ = 'chats'
@@ -38,6 +39,17 @@ class Chat(Base):
 
     user = relationship("User", back_populates="chats")
     document = relationship("Document", back_populates="chats")
+
+class Diagram(Base):
+    __tablename__ = 'diagrams'
+
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey('documents.id', ondelete="CASCADE"), nullable=False)
+    diagram_type = Column(String(50))  # flowchart, mindmap, sequence
+    mermaid_code = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    document = relationship("Document", back_populates="diagrams")
 
 # cascade="all, delete-orphan"
 # If you delete:

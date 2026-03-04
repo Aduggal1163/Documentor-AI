@@ -1,7 +1,8 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker,declarative_base
 
-URL_DATABASE = 'mysql+pymysql://root:root@localhost:3306/documentor_AI'
+URL_DATABASE = os.environ.get('DATABASE_URL', 'mysql+pymysql://root:root@localhost:3306/documentor_AI')
 
 engine = create_engine(URL_DATABASE)
 

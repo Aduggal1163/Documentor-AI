@@ -11,3 +11,5 @@ pydantic[email]
 cryptography
 pypdf
 python-docx
+python-dotenv
+mermaid

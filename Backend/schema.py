@@ -17,6 +17,7 @@ class DocumentOut(BaseModel):
     id: int
     file_name: str
     summary_text: str | None
+    extracted_text: str | None
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 
@@ -35,5 +36,16 @@ class Token(BaseModel):
     access_token : str
     token_type : str
 
+class DiagramCreate(BaseModel):
+    diagram_type: str  # flowchart, mindmap, sequence
+
+
+class DiagramOut(BaseModel):
+    id: int
+    diagram_type: str
+    mermaid_code: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
 # Create models are only needed when the client sends data to server.
 # Out models are needed when we send data back to the client.
