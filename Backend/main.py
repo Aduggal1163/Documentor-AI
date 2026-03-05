@@ -194,7 +194,7 @@ def chat_with_document(
 
     return new_chat
 
-@app.get("/api/chat/{document_id}", response_model=list[ChatOut])
+# @app.get("/api/chat/{document_id}", response_model=list[ChatOut])
 def get_chat_history(
     document_id: int,
     db: db_dependency,

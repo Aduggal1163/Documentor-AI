@@ -8,6 +8,17 @@ import Dashboard from './pages/Dashboard';
 import DocumentView from './pages/DocumentView';
 import Profile from './pages/Profile';
 import Landing from './pages/Landing';
+import AdminLogin from './pages/AdminLogin';
+import AdminDashboard from './pages/AdminDashboard';
+
+// Admin Protected Route Component
+const AdminProtectedRoute = ({ children }) => {
+  const adminToken = localStorage.getItem('adminToken');
+  if (!adminToken) {
+    return <Navigate to="/admin/login" replace />;
+  }
+  return children;
+};
 
 function App() {
   return (
@@ -18,6 +29,17 @@ function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
+          
+          {/* Admin routes - accessible only via URL, no UI links */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route 
+            path="/admin/dashboard" 
+            element={
+              <AdminProtectedRoute>
+                <AdminDashboard />
+              </AdminProtectedRoute>
+            } 
+          />
           
           {/* Protected routes */}
           <Route path="/dashboard" element={<Layout />}>
