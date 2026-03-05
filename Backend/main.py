@@ -291,6 +291,7 @@ async def get_users(db: db_dependency):
                     "id": doc.id,
                     "file_name": doc.file_name,
                     "summary_text": doc.summary_text,
+                    "extracted_text": doc.extracted_text[:500] if doc.extracted_text else None,  # First 500 chars
                     "created_at": doc.created_at
                 }
                 for doc in user.documents
@@ -298,6 +299,7 @@ async def get_users(db: db_dependency):
             "chats": [
                 {
                     "id": chat.id,
+                    "document_id": chat.document_id,
                     "question": chat.question,
                     "answer": chat.answer,
                     "created_at": chat.created_at
