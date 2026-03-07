@@ -1,18 +1,18 @@
-from fastapi import FastAPI, HTTPException, status, Depends, UploadFile, File
-import Backend.app.models.models as models
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
+import app.models.models as models
 import os
-from Backend.app.database.dependencies import get_db, get_current_user
+from app.database.dependencies import get_db, get_current_user
 from sqlalchemy.orm import Session
 from typing import Annotated
-from Backend.app.schemas.schema import DocumentOut
+from app.schemas.schema import DocumentOut
 import uuid
-from utils.document_utils import extract_text, summary
+from app.utils.document_utils import extract_text, summary
 
-app = FastAPI()
+router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 db_dependency = Annotated[Session, Depends(get_db)]
 
-@app.post("/api/documents/upload", response_model=DocumentOut)
+@router.post("/upload", response_model=DocumentOut)
 def upload_document(
     db: db_dependency,
     file: UploadFile = File(...),
@@ -77,7 +77,7 @@ def upload_document(
     return new_document
 
 
-@app.get('/api/documents', response_model=list[DocumentOut])
+@router.get('', response_model=list[DocumentOut])
 def get_all_documents(db: db_dependency, current_user: models.User = Depends(get_current_user)):
     documents = (
         db.query(models.Document).filter(models.Document.user_id == current_user.id).all()
@@ -85,7 +85,7 @@ def get_all_documents(db: db_dependency, current_user: models.User = Depends(get
     return documents
 
 
-@app.get("/api/documents/{document_id}", response_model=DocumentOut)
+@router.get("/{document_id}", response_model=DocumentOut)
 def get_single_document(document_id: int, db: db_dependency, current_user: models.User = Depends(get_current_user)):
     document = db.query(models.Document).filter(models.Document.id == document_id).first()
     if not document:
@@ -98,7 +98,7 @@ def get_single_document(document_id: int, db: db_dependency, current_user: model
     return document
 
 
-@app.delete('/api/documents/{document_id}', status_code=204)
+@router.delete('/{document_id}', status_code=204)
 def delete_document(document_id: int, db: db_dependency, current_user: models.User = Depends(get_current_user)):
     document = db.query(models.Document).filter(
         models.Document.id == document_id

@@ -1,16 +1,17 @@
-from fastapi import FastAPI, HTTPException, status, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 
-from Backend.app.database.dependencies import  get_current_user
-from Backend.app.schemas.schema import DiagramCreate, DiagramOut
-from utils.document_utils import generate_diagram
-import Backend.app.models.models as models
+from app.database.dependencies import  get_current_user
+from app.schemas.schema import DiagramCreate, DiagramOut
+from app.utils.document_utils import generate_diagram
+import app.models.models as models
 from typing import Annotated
-from Backend.app.database.dependencies import get_db
-app = FastAPI()
+from app.database.dependencies import get_db
+
+router = APIRouter(prefix="/api/documents", tags=["diagrams"])
 db_dependency = Annotated[Session, Depends(get_db)]
 
-@app.post("/api/documents/{document_id}/generate-diagram", response_model=DiagramOut)
+@router.post("/{document_id}/generate-diagram", response_model=DiagramOut)
 def generate_document_diagram(
     document_id: int,
     diagram_data: DiagramCreate,
@@ -51,7 +52,7 @@ def generate_document_diagram(
     return new_diagram
 
 
-@app.get("/api/documents/{document_id}/diagrams", response_model=list[DiagramOut])
+@router.get("/{document_id}/diagrams", response_model=list[DiagramOut])
 def get_document_diagrams(
     document_id: int,
     db: db_dependency,

@@ -1,15 +1,16 @@
-from fastapi import FastAPI, HTTPException,  Depends
+from fastapi import APIRouter, HTTPException,  Depends
 
-import Backend.app.models.models as models
-from Backend.app.database.dependencies import get_db, get_current_user
-from Backend.app.schemas.schema import ChatCreate, ChatOut
+import app.models.models as models
+from app.database.dependencies import get_db, get_current_user
+from app.schemas.schema import ChatCreate, ChatOut
 from typing import Annotated
 from sqlalchemy.orm import Session
-from utils.document_utils import ask_question
-app = FastAPI()
+from app.utils.document_utils import ask_question
+
+router = APIRouter(prefix="/api/chat", tags=["chat"])
 db_dependency = Annotated[Session, Depends(get_db)]
 
-@app.post("/api/chat/{document_id}", response_model=ChatOut)
+@router.post("/{document_id}", response_model=ChatOut)
 def chat_with_document(
     document_id: int,
     chat: ChatCreate,
@@ -44,7 +45,7 @@ def chat_with_document(
     return new_chat
 
 
-@app.get("/api/chat/{document_id}", response_model=list[ChatOut])
+@router.get("/{document_id}", response_model=list[ChatOut])
 def get_chat_history(
     document_id: int,
     db: db_dependency,

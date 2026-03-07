@@ -1,13 +1,15 @@
-from fastapi import FastAPI, HTTPException, status, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, status, Depends, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 from typing import Annotated
-import Backend.app.models.models as models
-from Backend.app.schemas.schema import AdminLogin
-from Backend.app.database.dependencies import get_db
-app = FastAPI()
+import app.models.models as models
+from app.schemas.schema import AdminLogin
+from app.database.dependencies import get_db
+import os
+
+router = APIRouter(prefix="/admin", tags=["admin"])
 db_dependency = Annotated[Session, Depends(get_db)]
 
-@app.get("/admin/users")
+@router.get("/users")
 async def get_users(db: db_dependency):
     users = (
         db.query(models.User)
@@ -49,7 +51,7 @@ async def get_users(db: db_dependency):
     return result
 
 
-@app.post('/admin/login')
+@router.post('/login')
 def admin_login(data: AdminLogin):
     username = os.getenv('ADMIN_USERNAME')
     password = os.getenv('ADMIN_PASSWORD')
