@@ -1,0 +1,70 @@
+from fastapi import FastAPI, HTTPException, status, Depends, UploadFile, File
+from sqlalchemy.orm import Session
+
+from Backend.app.database.dependencies import  get_current_user
+from Backend.app.schemas.schema import DiagramCreate, DiagramOut
+from utils.document_utils import generate_diagram
+import Backend.app.models.models as models
+from typing import Annotated
+from Backend.app.database.dependencies import get_db
+app = FastAPI()
+db_dependency = Annotated[Session, Depends(get_db)]
+
+@app.post("/api/documents/{document_id}/generate-diagram", response_model=DiagramOut)
+def generate_document_diagram(
+    document_id: int,
+    diagram_data: DiagramCreate,
+    db: db_dependency,
+    current_user: models.User = Depends(get_current_user),
+):
+    # Fetch document
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id,
+        models.Document.user_id == current_user.id
+    ).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not document.summary_text:
+        raise HTTPException(status_code=400, detail="Document has no summary")
+
+    try:
+        # Use LangChain tool for diagram generation
+        mermaid_code = generate_diagram(
+            document.summary_text,
+            diagram_data.diagram_type
+        )
+    except Exception:
+        raise HTTPException(status_code=500, detail="Diagram generation failed")
+
+    new_diagram = models.Diagram(
+        document_id=document_id,
+        diagram_type=diagram_data.diagram_type,
+        mermaid_code=mermaid_code
+    )
+
+    db.add(new_diagram)
+    db.commit()
+    db.refresh(new_diagram)
+
+    return new_diagram
+
+
+@app.get("/api/documents/{document_id}/diagrams", response_model=list[DiagramOut])
+def get_document_diagrams(
+    document_id: int,
+    db: db_dependency,
+    current_user: models.User = Depends(get_current_user),
+):
+    # Verify ownership
+    document = db.query(models.Document).filter(
+        models.Document.id == document_id,
+        models.Document.user_id == current_user.id
+    ).first()
+
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    return document.diagrams
+

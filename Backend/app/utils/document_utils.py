@@ -1,43 +1,52 @@
- 
-import ollama
-from pypdf import PdfReader
-from docx import Document
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
+from langchain_ollama import OllamaLLM
+
+
+# Initialize LLM
+llm = OllamaLLM(model='llama3.2:1b')
+
 
 def extract_text(file_path):
-    if file_path.endswith('.txt'):
-        with open(file_path,'r',encoding='utf-8') as f:
-            return f.read()
-    elif file_path.endswith('.pdf'):
-        reader = PdfReader(file_path)
-        return "\n".join([page.extract_text() for page in reader.pages])
-    elif file_path.endswith(".docx"):
-        doc = Document(file_path)
-        return "\n".join([para.text for para in doc.paragraphs])
+    """Extract text from PDF, TXT, or DOCX files using LangChain loaders."""
+    if file_path.endswith('.pdf'):
+        loader = PyPDFLoader(file_path)
+    elif file_path.endswith('.txt'):
+        loader = TextLoader(file_path)
+    elif file_path.endswith('.docx'):
+        loader = Docx2txtLoader(file_path)
     else:
-        raise ValueError("Unsupported file type")
-    
+        raise ValueError('Unsupported File Type')
+    docs = loader.load()
+    # docs returns a list of ducument objects and each document has page_content(extracted text) and metadata (pagenumebr,source etc)
+    return '\n'.join([doc.page_content for doc in docs])
+
+
 def summary(text):
-    prompt = f'Summarize this document: \n{text}'
-    response = ollama.chat(
-        model='llama3.2:1b',
-        messages=[
-            {
-                'role':'user',
-                'content':prompt
-            }
-        ]
-    )
-    return response['message']['content']
+    """Generate summary using LangChain OllamaLLM."""
+    prompt = f"Summarize this document:\n{text}"
+    response = llm.invoke(prompt)
+    return response if isinstance(response, str) else str(response)
+#it means if response is already a string then simply return that else convert that into string and then return that
 
 def ask_question(text, question):
-    prompt = f"DOCUMENT:\n{text}\nQUESTION:\n{question}"
-    response = ollama.chat(model="llama3.2:1b", messages=[{"role": "user", "content": prompt}])
-    return response["message"]["content"]
+    """Answer questions about document content using LangChain with Ollama."""
+    prompt = f"""You are a helpful assistant that answers questions about a document.
+Document content:
+{text[:5000]}
+Question: {question}
 
+Please provide a clear and accurate answer based only on the document content above.
+If the answer is not in the document, say "I couldn't find the answer in the document."
+"""
+    response = llm.invoke(prompt)
+    return response if isinstance(response, str) else str(response)
+
+
+#Mermaid diagram: is a way to create diagrams using simple text code instead of drawing them manually
 def generate_diagram(summary_text: str, diagram_type: str) -> str:
-    # Detailed prompt with exact syntax examples
+    """Generate Mermaid diagram from summary using LangChain."""
     if diagram_type == "flowchart":
-        prompt = f"""Generate a Mermaid flowchart diagram from this summary. 
+        prompt = f"""Generate a Mermaid flowchart diagram from this summary.
 
 CRITICAL RULES:
 1. Use ONLY this exact format: flowchart TD\n    A[Label] --> B[Label]
@@ -56,7 +65,8 @@ Summary to convert:
 {summary_text[:1000]}
 
 Generate flowchart:"""
-    
+
+#mind map is a diagram used to organize ideas around a central topic 
     elif diagram_type == "mindmap":
         prompt = f"""Generate a Mermaid mindmap diagram from this summary.
 
@@ -85,7 +95,9 @@ Summary to convert:
 {summary_text[:800]}
 
 Generate mindmap with simple short labels only:"""
-    
+        
+#sequence diagram is a type of UML diagram used to show how different components interact with each other 
+
     else:  # sequence
         prompt = f"""Generate a Mermaid sequence diagram from this summary.
 
@@ -110,12 +122,10 @@ Summary to convert:
 Generate sequence diagram:"""
 
     try:
-        response = ollama.chat(
-            model="llama3.2:1b",
-            messages=[{"role": "user", "content": prompt}],
-        )
-        code = response["message"]["content"].strip()
-        
+        response = llm.invoke(prompt)
+        code = response.strip() if isinstance(response, str) else str(response)
+        #strip() removes extra space
+
         # Clean up any markdown code blocks that might be present
         code = code.replace("```mermaid", "").replace("```", "").strip()
         
@@ -131,16 +141,13 @@ Generate sequence diagram:"""
                 start_idx = i
                 break
         
-        code = '\n'.join(lines[start_idx:])
+        code = '\n'.join(lines[start_idx:]) #this removes everything before the diagram
         
         # For mindmap, clean up any remaining special characters
         if diagram_type == "mindmap":
-            # Remove lines with special characters that mindmap doesn't support
+            import re #importing regex which allows pattern matching
             clean_lines = []
             for line in code.split('\n'):
-                # Only keep lines with alphanumeric, spaces, and basic punctuation
-                import re
-                # Keep root(( lines and plain text lines
                 if 'root((' in line or not re.search(r'[():\-\[\]]', line):
                     clean_lines.append(line)
                 elif line.strip().startswith('root'):
@@ -148,6 +155,7 @@ Generate sequence diagram:"""
             code = '\n'.join(clean_lines)
         
         return code
+    
     except Exception as e:
         # Fallback: generate a simple diagram based on diagram type
         if diagram_type == "flowchart":
