@@ -47,3 +47,46 @@ def signin(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()):
 @router.get('/me', response_model=UserOut, status_code=status.HTTP_200_OK)
 def read_current_user(current_user: models.User = Depends(get_current_user)):
     return current_user
+
+
+@router.get('/stats', status_code=status.HTTP_200_OK)
+def get_user_stats(
+    db: db_dependency,
+    current_user: models.User = Depends(get_current_user)
+):
+    """Return usage statistics for the current user."""
+    total_docs = db.query(models.Document).filter(
+        models.Document.user_id == current_user.id
+    ).count()
+
+    # Get all document IDs for this user
+    doc_ids = [
+        d.id for d in db.query(models.Document.id).filter(
+            models.Document.user_id == current_user.id
+        ).all()
+    ]
+
+    total_chats = 0
+    total_diagrams = 0
+    if doc_ids:
+        total_chats = db.query(models.Chat).filter(
+            models.Chat.document_id.in_(doc_ids)
+        ).count()
+        total_diagrams = db.query(models.Diagram).filter(
+            models.Diagram.document_id.in_(doc_ids)
+        ).count()
+
+    # Docs created in the last 7 days
+    from datetime import datetime, timedelta, timezone
+    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    recent_docs = db.query(models.Document).filter(
+        models.Document.user_id == current_user.id,
+        models.Document.created_at >= week_ago
+    ).count()
+
+    return {
+        "total_documents": total_docs,
+        "total_chats": total_chats,
+        "total_diagrams": total_diagrams,
+        "recent_documents": recent_docs,
+    }

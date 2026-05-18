@@ -1,4 +1,28 @@
-env
-__pycache__
-uploads/
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# Environment variables — NEVER commit these
 .env
+.env.local
+.env.*.local
+
+# Uploaded files
+uploads/
+
+# Database files
+*.db
+*.sqlite3
+
+# OS / Editor
+.DS_Store
+.idea/
+.vscode/
+*.swp

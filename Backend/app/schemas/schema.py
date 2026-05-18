@@ -1,5 +1,8 @@
+from __future__ import annotations
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel,EmailStr,ConfigDict
 from datetime import datetime
+from typing import Optional
 
 class AdminLogin(BaseModel):
     username : str
@@ -19,8 +22,8 @@ class UserOut(BaseModel):
 class DocumentOut(BaseModel):
     id: int
     file_name: str
-    summary_text: str | None
-    extracted_text: str | None
+    summary_text: Optional[str]
+    extracted_text: Optional[str]
     created_at: datetime
     model_config = ConfigDict(from_attributes=True)
 

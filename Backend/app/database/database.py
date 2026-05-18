@@ -1,15 +1,26 @@
 import os
+# pyrefly: ignore [missing-import]
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker,declarative_base
+from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
 
-URL_DATABASE = os.environ.get('DATABASE_URL', 'mysql+pymysql://root:root@localhost:3306/documentor_AI')
+# Load variables from .env file (if present)
+load_dotenv()
+
+URL_DATABASE = os.environ.get('DATABASE_URL')
+
+if not URL_DATABASE:
+    raise RuntimeError(
+        "DATABASE_URL is not set. "
+        "Copy .env.example to .env and fill in your credentials."
+    )
 
 engine = create_engine(URL_DATABASE)
 
 sessionLocal = sessionmaker(
     autocommit=False,
     autoflush=False,
-    bind = engine
-    )
+    bind=engine
+)
 
 Base = declarative_base()

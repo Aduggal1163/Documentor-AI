@@ -59,7 +59,8 @@ const Landing = () => {
       <header className="landing-header">
         <div className="landing-header-content">
           <Link to="/" className="landing-logo">
-            📄 Documentor AI
+            <img src="/favicon.svg" alt="Documentor AI Logo" className="landing-logo-img" />
+            <span>Documentor AI</span>
           </Link>
           <nav className="landing-nav">
             <Link to="/signin" className="landing-nav-link">Sign In</Link>
@@ -205,7 +206,10 @@ const Landing = () => {
       <footer className="landing-footer">
         <div className="footer-content">
           <div className="footer-brand">
-            <span className="footer-logo">📄 Documentor AI</span>
+            <span className="footer-logo">
+              <img src="/favicon.svg" alt="Documentor AI Logo" className="footer-logo-img" />
+              <span>Documentor AI</span>
+            </span>
             <p className="footer-tagline">Transforming documents with AI</p>
           </div>
           <div className="footer-copyright">

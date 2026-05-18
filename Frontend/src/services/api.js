@@ -40,6 +40,7 @@ export const authAPI = {
     });
   },
   getCurrentUser: () => api.get('/api/auth/me'),
+  getStats: () => api.get('/api/auth/stats'),
 };
 
 // Documents API

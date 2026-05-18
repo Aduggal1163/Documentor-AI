@@ -1,20 +1,32 @@
-from passlib.context import CryptContext
+import bcrypt
 from jose import jwt
 from datetime import datetime, timedelta, timezone
 import os
+from dotenv import load_dotenv
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'fallback-dev-key-change-in-production')
+load_dotenv()
+
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY is not set. Add it to your .env file.")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-pwd_context = CryptContext(schemes=['bcrypt'],deprecated='auto')
+def get_password_hash(password: str) -> str:
+    # Truncate password to 72 bytes (bcrypt limitation) and encode to bytes
+    password_bytes = password[:72].encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed_bytes = bcrypt.hashpw(password_bytes, salt)
+    return hashed_bytes.decode('utf-8')
 
-def get_password_hash(password : str):
-    # Truncate password to 72 bytes (bcrypt limitation)
-    return pwd_context.hash(password[:72])
-
-def verify_password(plain_password : str, hashed_password: str):
-    return pwd_context.verify(plain_password[:72],hashed_password)
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        password_bytes = plain_password[:72].encode('utf-8')
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(password_bytes, hashed_bytes)
+    except ValueError:
+        return False
 
 def create_access_token(data : dict):
     to_encode = data.copy()

@@ -3,6 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from app.routers import auth_router, document_router, chat_router, admin_router, diagram_router
 
+from app.database.database import engine, Base
+from app.models import models
+
+# Create database tables automatically
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
 
 app.add_middleware(

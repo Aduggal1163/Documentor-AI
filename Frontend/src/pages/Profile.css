@@ -291,3 +291,83 @@
   }
 }
 
+
+
+/* ── Stats Tab ───────────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card-big {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card-big:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px var(--shadow-color);
+}
+
+.stat-card-big.accent {
+  border-color: var(--accent-primary);
+  background: rgba(88, 166, 255, 0.06);
+}
+
+.stat-card-icon { font-size: 2rem; }
+.stat-card-value { font-size: 2.5rem; font-weight: 800; color: var(--accent-primary); line-height: 1; }
+.stat-card-label { font-size: 0.875rem; color: var(--text-secondary); font-weight: 500; }
+
+.stats-insights {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 1.5rem;
+}
+
+.stats-insights h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem; }
+
+.insight-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.insight-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.insight-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.insight-dot.green  { background: var(--accent-success); }
+.insight-dot.blue   { background: var(--accent-primary); }
+.insight-dot.orange { background: var(--accent-warning); }
+
+.stats-loading {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 1rem; padding: 3rem; color: var(--text-secondary);
+}
+
+.loading-spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.stats-empty { text-align: center; padding: 3rem; color: var(--text-secondary); }
+.stats-empty .empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr; }
+}

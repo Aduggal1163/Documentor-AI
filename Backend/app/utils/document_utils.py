@@ -1,9 +1,13 @@
+import os
+from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader
 from langchain_ollama import OllamaLLM
 
+load_dotenv()
 
-# Initialize LLM
-llm = OllamaLLM(model='llama3.2:1b')
+# Initialize LLM — model name loaded from .env (default: llama3.2:1b)
+_model = os.environ.get('OLLAMA_MODEL', 'llama3.2:1b')
+llm = OllamaLLM(model=_model)
 
 
 def extract_text(file_path):
@@ -45,125 +49,231 @@ If the answer is not in the document, say "I couldn't find the answer in the doc
 #Mermaid diagram: is a way to create diagrams using simple text code instead of drawing them manually
 def generate_diagram(summary_text: str, diagram_type: str) -> str:
     """Generate Mermaid diagram from summary using LangChain."""
+    import re
+
     if diagram_type == "flowchart":
-        prompt = f"""Generate a Mermaid flowchart diagram from this summary.
+        prompt = f"""Generate ONLY a Mermaid flowchart. No explanation, no markdown, no backticks.
 
-CRITICAL RULES:
-1. Use ONLY this exact format: flowchart TD\n    A[Label] --> B[Label]
-2. Node labels MUST be inside square brackets: [text]
-3. Use --> for arrows between nodes
-4. NO quotes, NO colons in labels, NO special characters like parentheses
-5. Start with "flowchart TD" on first line
-6. NO extra text, NO markdown, NO backticks
-
-Example format:
+OUTPUT FORMAT (copy exactly):
 flowchart TD
-    A[Start] --> B[Process]
-    B --> C[End]
+    A[First Step] --> B[Second Step]
+    B --> C[Third Step]
+    C --> D[Result]
 
-Summary to convert:
-{summary_text[:1000]}
+RULES:
+- Start first line with exactly: flowchart TD
+- Every node must have a short unique letter id followed by [Label in brackets]
+- Labels: letters and numbers only, no colons, no parentheses, no quotes
+- Use --> for arrows only
+- 4 to 8 nodes maximum
 
-Generate flowchart:"""
-
-#mind map is a diagram used to organize ideas around a central topic 
-    elif diagram_type == "mindmap":
-        prompt = f"""Generate a Mermaid mindmap diagram from this summary.
-
-CRITICAL RULES - VERY IMPORTANT:
-1. Root MUST be: root((MainTopic))
-2. Each sub-topic is just plain text on a new line with 2 spaces indent per level
-3. Use ONLY letters, numbers, and spaces in labels - NO parentheses, NO special chars like (), :, -, etc.
-4. Keep labels SHORT - max 15 characters each
-5. Start with "mindmap" on first line
-6. NO extra text, NO markdown, NO backticks
-
-Example:
-mindmap
-  root((Project))
-    Planning
-      Design
-      Goals
-    Build
-      Frontend
-      Backend
-    Test
-      Unit
-      API
-
-Summary to convert:
+Summary:
 {summary_text[:800]}
 
-Generate mindmap with simple short labels only:"""
-        
-#sequence diagram is a type of UML diagram used to show how different components interact with each other 
+flowchart TD"""
 
-    else:  # sequence
-        prompt = f"""Generate a Mermaid sequence diagram from this summary.
+    elif diagram_type == "mindmap":
+        prompt = f"""Generate ONLY a Mermaid mindmap diagram. No explanation, no markdown fences, no backticks. Output only the raw diagram code.
 
-CRITICAL RULES:
-1. Use ONLY this exact format: sequenceDiagram\n    Actor->>Target: Message
-2. Define participants first: participant A\n    participant B
-3. Use ->> for arrows
-4. Use ONLY letters and numbers in messages - NO special characters
-5. Start with "sequenceDiagram" on first line
-6. NO extra text, NO markdown, NO backticks
+EXACT FORMAT TO FOLLOW:
+mindmap
+  root((Topic))
+    Branch1
+      Item1
+      Item2
+    Branch2
+      Item3
+      Item4
 
-Example format:
-sequenceDiagram
-    participant User
-    participant System
-    User->>System: Request
-    System-->>User: Response
+STRICT RULES:
+- First line MUST be exactly the word: mindmap
+- Second line MUST be: two spaces then root((ShortTopicName))
+- Only ONE root is allowed
+- Branch lines: exactly 4 spaces + plain text label
+- Leaf lines: exactly 6 spaces + plain text label
+- Labels: ONLY letters, numbers, spaces - NO parentheses, NO colons, NO dashes, NO brackets
+- Keep all labels under 15 characters
+- Maximum 3 levels deep
 
 Summary to convert:
-{summary_text[:1000]}
+{summary_text[:600]}
 
-Generate sequence diagram:"""
+Output the mindmap diagram now (start with the word mindmap):"""
+
+    else:  # sequence
+        prompt = f"""Generate ONLY a Mermaid sequence diagram. No explanation, no markdown, no backticks.
+
+OUTPUT FORMAT (copy exactly):
+sequenceDiagram
+    participant A
+    participant B
+    participant C
+    A->>B: DoSomething
+    B->>C: DoNext
+    C-->>A: Return
+
+RULES:
+- Line 1 must be exactly: sequenceDiagram
+- Define ALL participants first using: participant Name
+- Participant names: one word, letters only, no spaces
+- Use ONLY ->> for requests and -->> for responses
+- Message labels after colon: letters and numbers only, no special characters
+- Maximum 3 participants, maximum 6 messages
+
+Summary:
+{summary_text[:800]}
+
+sequenceDiagram"""
 
     try:
         response = llm.invoke(prompt)
         code = response.strip() if isinstance(response, str) else str(response)
-        #strip() removes extra space
 
-        # Clean up any markdown code blocks that might be present
+        # Remove markdown code fences
         code = code.replace("```mermaid", "").replace("```", "").strip()
-        
-        # Additional cleanup - remove any leading/trailing text
+
+        # Find where the valid diagram starts
         lines = code.split('\n')
-        valid_diagrams = ['flowchart', 'mindmap', 'sequenceDiagram']
-        
-        # Find where valid diagram starts
+        valid_starters = {'flowchart', 'mindmap', 'sequencediagram'}
         start_idx = 0
         for i, line in enumerate(lines):
-            line_lower = line.strip().lower()
-            if any(d in line_lower for d in valid_diagrams):
+            if line.strip().lower() in valid_starters or \
+               any(line.strip().lower().startswith(s) for s in valid_starters):
                 start_idx = i
                 break
-        
-        code = '\n'.join(lines[start_idx:]) #this removes everything before the diagram
-        
-        # For mindmap, clean up any remaining special characters
+        code = '\n'.join(lines[start_idx:]).strip()
+
+        # ── Mindmap-specific cleanup ──────────────────────────────────────────
         if diagram_type == "mindmap":
-            import re #importing regex which allows pattern matching
-            clean_lines = []
-            for line in code.split('\n'):
-                if 'root((' in line or not re.search(r'[():\-\[\]]', line):
-                    clean_lines.append(line)
-                elif line.strip().startswith('root'):
-                    clean_lines.append(line)
-            code = '\n'.join(clean_lines)
-        
-        return code
-    
-    except Exception as e:
-        # Fallback: generate a simple diagram based on diagram type
-        if diagram_type == "flowchart":
-            return "flowchart TD\n    A[Start] --> B[Process]\n    B --> C[End]"
-        elif diagram_type == "mindmap":
-            return "mindmap\n  root((Main))\n    Topic1\n      Item1\n    Topic2\n      Item2"
+            code = _clean_mindmap(code)
+
+        # ── Sequence-specific cleanup ─────────────────────────────────────────
         elif diagram_type == "sequence":
-            return "sequenceDiagram\n    participant A\n    participant B\n    A->>B: Message\n    B-->>A: Response"
+            code = _clean_sequence(code)
+
+        # Validate result has meaningful content
+        if len(code.split('\n')) < 3:
+            raise ValueError("Generated diagram too short")
+
+        return code
+
+    except Exception:
+        # Reliable fallbacks
+        if diagram_type == "flowchart":
+            return "flowchart TD\n    A[Start] --> B[Process]\n    B --> C[Analyze]\n    C --> D[Result]"
+        elif diagram_type == "mindmap":
+            return "mindmap\n  root((Main Topic))\n    Key Point 1\n      Detail A\n      Detail B\n    Key Point 2\n      Detail C\n    Key Point 3\n      Detail D"
+        else:  # sequence
+            return "sequenceDiagram\n    participant User\n    participant System\n    participant Database\n    User->>System: SendRequest\n    System->>Database: QueryData\n    Database-->>System: ReturnData\n    System-->>User: ShowResult"
+
+
+def _clean_mindmap(code: str) -> str:
+    """Sanitize LLM-generated mindmap code to ensure valid Mermaid syntax."""
+    import re
+    lines = code.split('\n')
+    result = []
+    root_seen = False
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Always keep the mindmap header
+        if stripped.lower() == 'mindmap':
+            result.append('mindmap')
+            continue
+
+        # Skip empty lines at the top
+        if not stripped and not result:
+            continue
+
+        # Handle root line
+        if 'root((' in line:
+            if root_seen:
+                continue  # only one root allowed
+            root_seen = True
+            # Extract the topic from root((Topic))
+            match = re.search(r'root\(\((.+?)\)\)', line)
+            topic = match.group(1) if match else 'MainTopic'
+            # Sanitize: letters, numbers, spaces only
+            topic = re.sub(r'[^a-zA-Z0-9 ]', '', topic).strip()[:20] or 'MainTopic'
+            result.append(f'  root(({topic}))')
+            continue
+
+        # Skip lines before root
+        if not root_seen:
+            continue
+
+        # For branch/leaf lines: sanitize labels
+        # Measure indent level
+        indent = len(line) - len(line.lstrip())
+        label = re.sub(r'[^a-zA-Z0-9 ]', '', stripped).strip()
+        if not label:
+            continue
+        if len(label) > 20:
+            label = label[:20].strip()
+
+        # Normalize indent to multiples of 2 (min 4 for branches)
+        if indent < 2:
+            indent = 4
+        elif indent < 4:
+            indent = 4
         else:
-            raise ValueError(f"Unknown diagram type: {diagram_type}")
+            indent = min(indent, 6)
+
+        result.append(' ' * indent + label)
+
+    # If no root was found, add a default one
+    if not root_seen and len(result) > 1:
+        result.insert(1, '  root((MainTopic))')
+
+    return '\n'.join(result)
+
+
+def _clean_sequence(code: str) -> str:
+    """Sanitize LLM-generated sequence diagram code."""
+    import re
+    lines = code.split('\n')
+    result = []
+    participants = set()
+
+    for line in lines:
+        stripped = line.strip()
+
+        if not stripped:
+            continue
+
+        # Keep header
+        if stripped.lower() == 'sequencediagram':
+            result.append('sequenceDiagram')
+            continue
+
+        # Clean participant lines
+        if stripped.lower().startswith('participant '):
+            name = stripped[12:].strip()
+            name = re.sub(r'[^a-zA-Z0-9]', '', name)[:15]
+            if name and name not in participants:
+                participants.add(name)
+                result.append(f'    participant {name}')
+            continue
+
+        # Fix and keep arrow lines
+        # Normalize arrow types: ->>>, ->>, --> and variants → ->> or -->>
+        if re.search(r'[-]+>+', stripped):
+            # Normalise all arrow variants
+            fixed = re.sub(r'-{1,3}>{2,3}', '->>', stripped)   # request
+            fixed = re.sub(r'-{2,3}>{1,2}(?!>)', '-->>', fixed) # response (if starts with --)
+            # Sanitize message after colon
+            if ':' in fixed:
+                parts = fixed.split(':', 1)
+                msg = re.sub(r'[^a-zA-Z0-9 ]', '', parts[1]).strip()[:40]
+                fixed = parts[0] + ': ' + (msg or 'Message')
+            result.append('    ' + fixed.strip())
+            continue
+
+        # Skip anything else (prose, explanations, etc.)
+
+    return '\n'.join(result)
+
+
+
 

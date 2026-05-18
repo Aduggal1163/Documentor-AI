@@ -20,10 +20,6 @@ const Dashboard = () => {
     fetchDocuments();
   }, []);
 
-  useEffect(() => {
-    filterAndSortDocuments();
-  }, [documents, searchQuery, sortBy, filterType]);
-
   const fetchDocuments = async () => {
     try {
       const response = await documentsAPI.getAll();
@@ -35,7 +31,7 @@ const Dashboard = () => {
     }
   };
 
-  const filterAndSortDocuments = () => {
+  useEffect(() => {
     let filtered = [...documents];
 
     // Apply search filter
@@ -63,7 +59,7 @@ const Dashboard = () => {
     });
 
     setFilteredDocs(filtered);
-  };
+  }, [documents, searchQuery, sortBy, filterType]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];

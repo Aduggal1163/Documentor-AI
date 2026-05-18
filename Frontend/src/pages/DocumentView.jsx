@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { documentsAPI, chatAPI, diagramAPI } from '../services/api';
 import './DocumentView.css';
@@ -19,27 +19,13 @@ const DocumentView = () => {
   const [activeTab, setActiveTab] = useState('summary');
   const [selectedDiagramType, setSelectedDiagramType] = useState('flowchart');
 
-  useEffect(() => {
-    fetchDocument();
-    fetchChats();
-    fetchDiagrams();
-  }, [id]);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [chats]);
-
-  useEffect(() => {
-    if (activeTab === 'diagram' && diagrams.length > 0) {
-      renderMermaidDiagram();
-    }
-  }, [activeTab, diagrams]);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const fetchDocument = async () => {
+  const fetchDocument = useCallback(async () => {
     try {
       const response = await documentsAPI.getOne(id);
       setDocument(response.data);
@@ -48,25 +34,25 @@ const DocumentView = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
-  const fetchChats = async () => {
+  const fetchChats = useCallback(async () => {
     try {
       const response = await chatAPI.getHistory(id);
       setChats(response.data);
     } catch {
       console.error('Failed to load chat history');
     }
-  };
+  }, [id]);
 
-  const fetchDiagrams = async () => {
+  const fetchDiagrams = useCallback(async () => {
     try {
       const response = await diagramAPI.getAll(id);
       setDiagrams(response.data);
     } catch {
       console.error('Failed to load diagrams');
     }
-  };
+  }, [id]);
 
   const handleSendQuestion = async (e) => {
     e.preventDefault();
@@ -101,7 +87,7 @@ const DocumentView = () => {
     }
   };
 
-  const renderMermaidDiagram = () => {
+  const renderMermaidDiagram = useCallback(() => {
     if (!mermaidRef.current || diagrams.length === 0) return;
 
     const latestDiagram = diagrams[diagrams.length - 1];
@@ -109,9 +95,43 @@ const DocumentView = () => {
 
     // Clean the mermaid code - remove markdown code blocks
     let cleanCode = latestDiagram.mermaid_code;
+    const diagramType = latestDiagram.diagram_type;
     
     // Remove ```mermaid and ``` wrapper
     cleanCode = cleanCode.replace(/```mermaid/g, '').replace(/```/g, '').trim();
+
+    // ── Safety guards: ensure the correct header is present ──────────────────
+    const firstLine = cleanCode.split('\n')[0].trim().toLowerCase();
+
+    if (diagramType === 'mindmap' && firstLine !== 'mindmap') {
+      // Missing mindmap header — prepend it
+      cleanCode = 'mindmap\n' + cleanCode;
+    } else if (diagramType === 'sequence' && firstLine !== 'sequencediagram') {
+      cleanCode = 'sequenceDiagram\n' + cleanCode;
+    } else if (diagramType === 'flowchart' && !firstLine.startsWith('flowchart')) {
+      cleanCode = 'flowchart TD\n' + cleanCode;
+    }
+
+    // ── Mindmap: strip any lines with forbidden characters ───────────────────
+    if (diagramType === 'mindmap') {
+      const lines = cleanCode.split('\n');
+      const safe = lines.filter((line, idx) => {
+        if (idx === 0) return true; // keep 'mindmap'
+        const stripped = line.trim();
+        if (!stripped) return false;
+        if (stripped.startsWith('root((')) return true;
+        // Allow only letters, numbers and spaces in labels
+        return !/[():\-[\]{}]/.test(stripped);
+      });
+      cleanCode = safe.join('\n');
+    }
+
+    // ── Sequence: fix invalid arrow syntax ──────────────────────────────────
+    if (diagramType === 'sequence') {
+      cleanCode = cleanCode
+        .replace(/-{1,3}>{3,}/g, '->>')     // ->>> → ->>
+        .replace(/([^-])->{1}([^>])/g, '$1->>$2'); // -> → ->>
+    }
 
     // Use mermaid.render to generate SVG
     const renderWithMermaid = async () => {
@@ -126,8 +146,8 @@ const DocumentView = () => {
       }
       
       try {
-        const id = 'mermaid-' + Date.now();
-        const { svg } = await window.mermaid.default.render(id, cleanCode);
+        const mermaidId = 'mermaid-' + Date.now();
+        const { svg } = await window.mermaid.default.render(mermaidId, cleanCode);
         mermaidRef.current.innerHTML = svg;
       } catch (err) {
         console.error('Mermaid render error:', err);
@@ -137,7 +157,23 @@ const DocumentView = () => {
     };
 
     renderWithMermaid();
-  };
+  }, [diagrams]);
+
+  useEffect(() => {
+    fetchDocument();
+    fetchChats();
+    fetchDiagrams();
+  }, [fetchDocument, fetchChats, fetchDiagrams]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chats]);
+
+  useEffect(() => {
+    if (activeTab === 'diagram' && diagrams.length > 0) {
+      renderMermaidDiagram();
+    }
+  }, [activeTab, diagrams, renderMermaidDiagram]);
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('en-US', {
